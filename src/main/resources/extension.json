@@ -1,0 +1,8 @@
+{
+  "entrypoint": "com.cubecolony.citizen.CitizenExtension",
+  "name": "citizen",
+  "version": "1.0-SNAPSHOT",
+  "dependencies": [
+    "i18n"
+  ]
+}
