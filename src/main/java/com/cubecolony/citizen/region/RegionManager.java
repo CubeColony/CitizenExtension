@@ -4,15 +4,16 @@ import com.cubecolony.api.annotation.AwaitingDocumentation;
 import com.cubecolony.api.util.Callback;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.ints.IntIntPair;
-import it.unimi.dsi.fastutil.objects.ObjectList;
 import lombok.extern.slf4j.Slf4j;
+import net.minestom.server.MinecraftServer;
 import net.minestom.server.coordinate.Point;
+import net.minestom.server.cubecolony.region.BoundingBox;
+import net.minestom.server.cubecolony.region.Region;
+import net.minestom.server.cubecolony.region.RegionType;
 import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -26,19 +27,10 @@ public final class RegionManager {
 
     public void enable() {
         CompletableFuture.runAsync(() -> {
-            BaseDatabase.run(connection -> {
-                final ObjectList<Region> list = RegionDAO.getRegions(connection);
-                list.forEach(region -> this.regions.put(region.getId(), region));
-            });
-
-            BaseDatabase.run(connection -> {
-                final ObjectList<IntIntPair> connections = RegionDAO.getRegionConnections(connection);
-                for (IntIntPair pair : connections) {
-                    final Region region = this.regions.get(pair.leftInt());
-                    region.addNode(pair.rightInt());
-                }
-            });
-
+            MinecraftServer.getDatabase()
+                    .find(Region.class)
+                    .findList()
+                    .forEach(region -> this.regions.put(Math.toIntExact(region.getId()), region));
             log.info("Loaded {} regions.", this.regions.size());
         });
     }
@@ -61,20 +53,17 @@ public final class RegionManager {
     }
 
     public void addRegion(@NotNull Region region) {
-        this.regions.put(region.getId(), region);
+        this.regions.put(Math.toIntExact(region.getId()), region);
     }
 
     public void removeRegion(@NotNull Region region) {
-        this.regions.remove(region.getId());
+        this.regions.remove(Math.toIntExact(region.getId()));
     }
 
     public void createRegion(@NotNull RegionType type, @NotNull BoundingBox boundingBox, @NotNull Callback<Region> callback) {
-        CompletableFuture.runAsync(() -> BaseDatabase.run(connection -> {
-            final Region region = RegionDAO.addRegion(connection, type, boundingBox);
-            if (Objects.nonNull(region)) {
-                this.regions.put(region.getId(), region);
-                callback.call(region);
-            }
-        }));
+        Region region = new Region(type, boundingBox);
+        MinecraftServer.getDatabase()
+                .insert(region);
+        callback.call(region);
     }
 }

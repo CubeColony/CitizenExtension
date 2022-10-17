@@ -1,16 +1,16 @@
 package com.cubecolony.citizen.pathfinding.impl;
 
-import com.cubecolony.citizen.region.BoundingBox;
-import com.cubecolony.citizen.region.Region;
 import com.cubecolony.citizen.region.RegionManager;
-import it.unimi.dsi.fastutil.ints.IntList;
 import net.minestom.server.coordinate.Pos;
+import net.minestom.server.cubecolony.region.BoundingBox;
+import net.minestom.server.cubecolony.region.Region;
 import net.minestom.server.entity.EntityCreature;
 import net.minestom.server.entity.ai.GoalSelector;
 import net.minestom.server.entity.pathfinding.Navigator;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.UnknownNullability;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -34,17 +34,17 @@ public final class CitizenWalkwayGoal extends GoalSelector {
      *
      * @param entityCreature the entity
      */
-    public CitizenWalkwayGoal(@NotNull EntityCreature entityCreature, @NotNull Region spawnRegion) {
+    public CitizenWalkwayGoal(@NotNull RegionManager manager, @NotNull EntityCreature entityCreature, @NotNull Region spawnRegion) {
         super(entityCreature);
-        this.regionManager = Manager.get(RegionManager.class);
+        this.regionManager = manager;
         this.lastRegion = spawnRegion;
         this.nextRegion = this.nextRegion(spawnRegion);
     }
 
     private @UnknownNullability Region nextRegion(@NotNull Region current) {
         final ThreadLocalRandom random = ThreadLocalRandom.current();
-        final IntList nodes = current.getNodes();
-        final int nextRegionId = nodes.getInt(random.nextInt(nodes.size()));
+        final List<Region> nodes = current.getChildren();
+        final int nextRegionId = Math.toIntExact(nodes.get(random.nextInt(nodes.size())).getId());
         final Region next = this.regionManager.getRegion(nextRegionId);
         if (Objects.isNull(next) || next.getId() == this.lastRegion.getId())
             return this.nextRegion(current);

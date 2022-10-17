@@ -2,20 +2,18 @@ package com.cubecolony.citizen.skin;
 
 import com.cubecolony.citizen.skin.props.*;
 import com.cubecolony.citizen.utils.ImageUtil;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Maps;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import lombok.extern.slf4j.Slf4j;
+import net.minestom.server.cubecolony.skin.CachedSkin;
 import net.minestom.server.entity.PlayerSkin;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.jetbrains.annotations.Nullable;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
-import java.sql.Connection;
-import java.sql.SQLException;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
@@ -29,7 +27,7 @@ import java.util.concurrent.CompletableFuture;
 public class SkinBuilder {
 
     private static final Int2ObjectMap<PlayerSkin> cachedSkins = new Int2ObjectOpenHashMap<>();
-    private final TreeMap<Integer, SkinElement> elements = Maps.newTreeMap();
+    private final TreeMap<Integer, SkinElement> elements = new TreeMap<>();
     private BufferedImage image = null;
     private int lastBuiltSkin = -1;
 
@@ -286,17 +284,11 @@ public class SkinBuilder {
         }
 
         return CompletableFuture.supplyAsync(() -> {
-            try (final Connection connection = BaseDatabase.connection()) {
-                Preconditions.checkNotNull(connection);
-
-                final String[] result = SkinDAO.getSkin(connection, hashcode);
-                if (Objects.nonNull(result)) {
-                    final PlayerSkin playerSkin = new PlayerSkin(result[0], result[1]);
-                    cachedSkins.put(hashcode, playerSkin);
-                    return playerSkin;
-                }
-            } catch (SQLException exception) {
-                exception.printStackTrace();
+            final CachedSkin result = SkinDAO.getSkin(hashcode);
+            if (Objects.nonNull(result)) {
+                final PlayerSkin playerSkin = new PlayerSkin(result.getValue(), result.getSignature());
+                cachedSkins.put(hashcode, playerSkin);
+                return playerSkin;
             }
 
             for (Map.Entry<Integer, SkinElement> entry : this.elements.entrySet()) {
@@ -326,7 +318,7 @@ public class SkinBuilder {
                 return null;
             }
 
-            BaseDatabase.run(connection -> SkinDAO.addSkin(connection, hashcode, skin.textures(), skin.signature()));
+            SkinDAO.addSkin(hashcode, skin.textures(), skin.signature());
             return skin;
         }).whenComplete((playerSkin, throwable) -> cachedSkins.put(hashcode, playerSkin));
     }
